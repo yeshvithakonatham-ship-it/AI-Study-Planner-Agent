@@ -5,8 +5,6 @@ from typing import TypedDict
 
 from langchain_groq import ChatGroq
 from langchain_core.documents import Document
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from langgraph.graph import StateGraph, START, END
 
@@ -30,45 +28,45 @@ llm = ChatGroq(
 
 
 # =====================================
-# RAG KNOWLEDGE BASE
+# LIGHTWEIGHT RAG KNOWLEDGE BASE
 # =====================================
 
 study_documents = [
 
     """
-    Pomodoro Technique:
-    Study for 25 minutes and take a 5-minute break.
-    After completing four study sessions, take a longer break.
-    This technique helps students maintain focus and avoid burnout.
-    """,
+Pomodoro Technique:
+Study for 25 minutes and take a 5-minute break.
+After completing four study sessions, take a longer break.
+This technique helps students maintain focus and avoid burnout.
+""",
 
     """
-    Active Recall:
-    Instead of simply rereading notes, test yourself by trying to
-    remember information without looking at the material.
-    Flashcards and self-questioning are useful active recall techniques.
-    """,
+Active Recall:
+Instead of simply rereading notes, test yourself by trying to
+remember information without looking at the material.
+Flashcards and self-questioning are useful active recall techniques.
+""",
 
     """
-    Spaced Repetition:
-    Review study material multiple times with increasing intervals
-    between each revision session.
-    This helps improve long-term memory retention.
-    """,
+Spaced Repetition:
+Review study material multiple times with increasing intervals
+between each revision session.
+This helps improve long-term memory retention.
+""",
 
     """
-    Time Management:
-    Break large study tasks into smaller manageable tasks.
-    Prioritize difficult subjects and topics that require more practice.
-    Avoid studying too many difficult topics continuously.
-    """,
+Time Management:
+Break large study tasks into smaller manageable tasks.
+Prioritize difficult subjects and topics that require more practice.
+Avoid studying too many difficult topics continuously.
+""",
 
     """
-    Revision Strategy:
-    Reserve time before examinations for revision.
-    Focus revision sessions on important concepts, weak topics,
-    previous mistakes, and practice questions.
-    """
+Revision Strategy:
+Reserve time before examinations for revision.
+Focus revision sessions on important concepts, weak topics,
+previous mistakes, and practice questions.
+"""
 ]
 
 
@@ -80,17 +78,43 @@ documents = [
 
 
 # =====================================
-# EMBEDDINGS + FAISS VECTOR DATABASE
+# LIGHTWEIGHT RAG RETRIEVAL
 # =====================================
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2"
-)
+def retrieve_relevant_documents(query, k=3):
 
-vector_store = FAISS.from_documents(
-    documents,
-    embeddings
-)
+    query_words = set(
+        query.lower().split()
+    )
+
+    scored_documents = []
+
+    for document in documents:
+
+        document_words = set(
+            document.page_content.lower().split()
+        )
+
+        score = len(
+            query_words.intersection(
+                document_words
+            )
+        )
+
+        scored_documents.append(
+            (score, document)
+        )
+
+    scored_documents.sort(
+        key=lambda x: x[0],
+        reverse=True
+    )
+
+    return [
+        document
+        for score, document
+        in scored_documents[:k]
+    ]
 
 
 # =====================================
@@ -134,7 +158,6 @@ Available study hours per day:
 Difficult subjects:
 {state['difficult_subjects']}
 
-
 Your tasks:
 
 1. Assign a priority level to each subject.
@@ -154,13 +177,13 @@ Return the result in a structured format.
 
 
 # =====================================
-# AGENT 2: RAG RETRIEVAL
+# AGENT 2: LIGHTWEIGHT RAG RETRIEVAL
 # =====================================
 
 def rag_retrieval(state: StudyState):
 
     query = f"""
-Give useful study techniques and learning strategies for:
+Study techniques and learning strategies.
 
 Subjects:
 {state['subjects']}
@@ -169,7 +192,7 @@ Difficult subjects:
 {state['difficult_subjects']}
 """
 
-    docs = vector_store.similarity_search(
+    docs = retrieve_relevant_documents(
         query,
         k=3
     )
@@ -246,7 +269,6 @@ Return a clean and well-structured day-wise study plan.
 workflow = StateGraph(StudyState)
 
 
-# Add nodes
 workflow.add_node(
     "study_analyzer",
     study_analyzer
@@ -263,7 +285,6 @@ workflow.add_node(
 )
 
 
-# Connect nodes
 workflow.add_edge(
     START,
     "study_analyzer"
@@ -285,7 +306,6 @@ workflow.add_edge(
 )
 
 
-# Compile workflow
 study_planner_app = workflow.compile()
 
 
@@ -333,54 +353,36 @@ with gr.Blocks(
         """
 # 🤖 AI Study Planner Agent
 
-### Personalized Study Planning using LangGraph + RAG + Groq
+### Personalized Study Planning using LangGraph + Lightweight RAG + Groq
 """
     )
 
 
     with gr.Row():
 
-        # =============================
-        # INPUT SECTION
-        # =============================
-
         with gr.Column():
 
             subjects = gr.Textbox(
-
                 label="📚 Subjects",
-
-                placeholder=
-                "Example: Operating Systems, Machine Learning, Angular"
-
+                placeholder="Example: Operating Systems, Machine Learning, Angular"
             )
 
 
             days = gr.Number(
-
                 label="📅 Days Remaining",
-
                 value=7
-
             )
 
 
             hours_per_day = gr.Number(
-
                 label="⏰ Study Hours Per Day",
-
                 value=4
-
             )
 
 
             difficult_subjects = gr.Textbox(
-
                 label="🔥 Difficult Subjects",
-
-                placeholder=
-                "Example: Operating Systems, Machine Learning"
-
+                placeholder="Example: Operating Systems, Machine Learning"
             )
 
 
@@ -389,36 +391,23 @@ with gr.Blocks(
             )
 
 
-        # =============================
-        # OUTPUT SECTION
-        # =============================
-
         with gr.Column():
 
             analysis_output = gr.Textbox(
-
                 label="📊 Study Analysis",
-
                 lines=12
-
             )
 
 
             rag_output = gr.Textbox(
-
                 label="📚 RAG Study Tips",
-
                 lines=10
-
             )
 
 
             plan_output = gr.Textbox(
-
                 label="🗓️ Personalized Study Plan",
-
                 lines=20
-
             )
 
 
@@ -431,20 +420,16 @@ submit_button.click(
     fn=run_study_planner,
 
     inputs=[
-
         subjects,
         days,
         hours_per_day,
         difficult_subjects
-
     ],
 
     outputs=[
-
         analysis_output,
         rag_output,
         plan_output
-
     ]
 )
 
@@ -465,5 +450,4 @@ if __name__ == "__main__":
                 10000
             )
         )
-
     )
