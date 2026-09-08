@@ -4,8 +4,6 @@ import gradio as gr
 from typing import TypedDict
 
 from langchain_groq import ChatGroq
-from langchain_core.documents import Document
-
 from langgraph.graph import StateGraph, START, END
 
 
@@ -28,93 +26,33 @@ llm = ChatGroq(
 
 
 # =====================================
-# LIGHTWEIGHT RAG KNOWLEDGE BASE
+# STUDY KNOWLEDGE BASE
 # =====================================
 
-study_documents = [
-
-    """
+study_tips = """
 Pomodoro Technique:
 Study for 25 minutes and take a 5-minute break.
 After completing four study sessions, take a longer break.
-This technique helps students maintain focus and avoid burnout.
-""",
 
-    """
 Active Recall:
 Instead of simply rereading notes, test yourself by trying to
 remember information without looking at the material.
-Flashcards and self-questioning are useful active recall techniques.
-""",
+Flashcards and self-questioning are useful.
 
-    """
 Spaced Repetition:
 Review study material multiple times with increasing intervals
-between each revision session.
-This helps improve long-term memory retention.
-""",
+between revision sessions. This improves long-term memory retention.
 
-    """
 Time Management:
 Break large study tasks into smaller manageable tasks.
 Prioritize difficult subjects and topics that require more practice.
 Avoid studying too many difficult topics continuously.
-""",
 
-    """
 Revision Strategy:
 Reserve time before examinations for revision.
 Focus revision sessions on important concepts, weak topics,
 previous mistakes, and practice questions.
 """
-]
-
-
-# Convert text into LangChain documents
-documents = [
-    Document(page_content=text)
-    for text in study_documents
-]
-
-
-# =====================================
-# LIGHTWEIGHT RAG RETRIEVAL
-# =====================================
-
-def retrieve_relevant_documents(query, k=3):
-
-    query_words = set(
-        query.lower().split()
-    )
-
-    scored_documents = []
-
-    for document in documents:
-
-        document_words = set(
-            document.page_content.lower().split()
-        )
-
-        score = len(
-            query_words.intersection(
-                document_words
-            )
-        )
-
-        scored_documents.append(
-            (score, document)
-        )
-
-    scored_documents.sort(
-        key=lambda x: x[0],
-        reverse=True
-    )
-
-    return [
-        document
-        for score, document
-        in scored_documents[:k]
-    ]
 
 
 # =====================================
@@ -144,29 +82,25 @@ You are an AI Study Analyzer Agent.
 
 Analyze the student's study requirements.
 
-Student Information:
-
 Subjects:
 {state['subjects']}
 
-Days remaining until exam:
+Days remaining:
 {state['days']}
 
-Available study hours per day:
+Study hours per day:
 {state['hours_per_day']}
 
 Difficult subjects:
 {state['difficult_subjects']}
 
-Your tasks:
+Tasks:
 
-1. Assign a priority level to each subject.
+1. Assign priority levels to subjects.
 2. Give difficult subjects higher priority.
-3. Calculate the total available study hours.
-4. Suggest how study time should be distributed among subjects.
-5. Keep the analysis clear and concise.
-
-Return the result in a structured format.
+3. Calculate total available study hours.
+4. Suggest time distribution.
+5. Keep the answer clear and concise.
 """
 
     response = llm.invoke(prompt)
@@ -177,33 +111,13 @@ Return the result in a structured format.
 
 
 # =====================================
-# AGENT 2: LIGHTWEIGHT RAG RETRIEVAL
+# AGENT 2: STUDY TIPS RETRIEVAL
 # =====================================
 
 def rag_retrieval(state: StudyState):
 
-    query = f"""
-Study techniques and learning strategies.
-
-Subjects:
-{state['subjects']}
-
-Difficult subjects:
-{state['difficult_subjects']}
-"""
-
-    docs = retrieve_relevant_documents(
-        query,
-        k=3
-    )
-
-    rag_content = "\n\n".join(
-        doc.page_content
-        for doc in docs
-    )
-
     return {
-        "rag_tips": rag_content
+        "rag_tips": study_tips
     }
 
 
@@ -216,9 +130,7 @@ def study_plan_generator(state: StudyState):
     prompt = f"""
 You are an AI Study Plan Generator Agent.
 
-Create a personalized and practical day-wise study plan.
-
-Student Information:
+Create a personalized day-wise study plan.
 
 Subjects:
 {state['subjects']}
@@ -226,33 +138,27 @@ Subjects:
 Days remaining:
 {state['days']}
 
-Available study hours per day:
+Study hours per day:
 {state['hours_per_day']}
 
 Difficult subjects:
 {state['difficult_subjects']}
 
-
 Study Analysis:
 {state['analysis']}
 
-
-Relevant Study Tips from Knowledge Base:
+Study Tips:
 {state['rag_tips']}
-
 
 Rules:
 
-1. Create a plan for every day from Day 1 to Day {state['days']}.
-2. Do not exceed {state['hours_per_day']} study hours per day.
-3. Give more time to difficult subjects.
+1. Create a plan from Day 1 to Day {state['days']}.
+2. Do not exceed {state['hours_per_day']} hours per day.
+3. Give difficult subjects more time.
 4. Include all subjects.
-5. Use relevant study techniques from the provided study tips.
-6. Include revision time.
-7. Include short breaks where appropriate.
-8. Keep the plan realistic and easy to follow.
-
-Return a clean and well-structured day-wise study plan.
+5. Include revision.
+6. Include breaks.
+7. Keep the plan realistic.
 """
 
     response = llm.invoke(prompt)
@@ -267,7 +173,6 @@ Return a clean and well-structured day-wise study plan.
 # =====================================
 
 workflow = StateGraph(StudyState)
-
 
 workflow.add_node(
     "study_analyzer",
@@ -310,7 +215,7 @@ study_planner_app = workflow.compile()
 
 
 # =====================================
-# GRADIO FUNCTION
+# RUN STUDY PLANNER
 # =====================================
 
 def run_study_planner(
@@ -323,20 +228,15 @@ def run_study_planner(
     result = study_planner_app.invoke({
 
         "subjects": subjects,
-
         "days": int(days),
-
         "hours_per_day": float(hours_per_day),
-
         "difficult_subjects": difficult_subjects
+
     })
 
     return (
-
         result["analysis"],
-
         result["rag_tips"],
-
         result["study_plan"]
     )
 
@@ -353,7 +253,7 @@ with gr.Blocks(
         """
 # 🤖 AI Study Planner Agent
 
-### Personalized Study Planning using LangGraph + Lightweight RAG + Groq
+### Personalized Study Planning using LangGraph + Study Knowledge Base + Groq
 """
     )
 
@@ -367,24 +267,20 @@ with gr.Blocks(
                 placeholder="Example: Operating Systems, Machine Learning, Angular"
             )
 
-
             days = gr.Number(
                 label="📅 Days Remaining",
                 value=7
             )
-
 
             hours_per_day = gr.Number(
                 label="⏰ Study Hours Per Day",
                 value=4
             )
 
-
             difficult_subjects = gr.Textbox(
                 label="🔥 Difficult Subjects",
                 placeholder="Example: Operating Systems, Machine Learning"
             )
-
 
             submit_button = gr.Button(
                 "🚀 Generate Study Plan"
@@ -398,22 +294,16 @@ with gr.Blocks(
                 lines=12
             )
 
-
             rag_output = gr.Textbox(
-                label="📚 RAG Study Tips",
+                label="📚 Study Tips",
                 lines=10
             )
-
 
             plan_output = gr.Textbox(
                 label="🗓️ Personalized Study Plan",
                 lines=20
             )
 
-
-# =====================================
-# BUTTON ACTION
-# =====================================
 
 submit_button.click(
 
@@ -441,13 +331,8 @@ submit_button.click(
 if __name__ == "__main__":
 
     demo.launch(
-
         server_name="0.0.0.0",
-
         server_port=int(
-            os.environ.get(
-                "PORT",
-                10000
-            )
+            os.environ.get("PORT", 10000)
         )
     )
