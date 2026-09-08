@@ -4,8 +4,6 @@ import gradio as gr
 from typing import TypedDict
 
 from langchain_groq import ChatGroq
-
-
 from langgraph.graph import StateGraph, START, END
 
 
@@ -69,7 +67,11 @@ study_documents = [
     """
 ]
 
+
+# Use the study documents directly
 documents = study_documents
+
+
 # =====================================
 # LANGGRAPH STATE
 # =====================================
@@ -152,9 +154,12 @@ def rag_retrieval(state: StudyState):
         if any(word in content for word in query_words):
             relevant_docs.append(document)
 
+    # If no documents match,
+    # use all study techniques
     if not relevant_docs:
         relevant_docs = documents
 
+    # Select maximum 3 relevant documents
     rag_content = "\n\n".join(
         document.strip()
         for document in relevant_docs[:3]
@@ -163,6 +168,7 @@ def rag_retrieval(state: StudyState):
     return {
         "rag_tips": rag_content
     }
+
 
 # =====================================
 # AGENT 3: STUDY PLAN GENERATOR
@@ -283,7 +289,7 @@ def run_study_planner(
     difficult_subjects
 ):
 
-    # Validate input
+    # Validate subjects
 
     if not subjects.strip():
         return (
@@ -292,9 +298,13 @@ def run_study_planner(
             ""
         )
 
+    # Validate difficult subjects
+
     if not difficult_subjects.strip():
         difficult_subjects = "None specified"
 
+
+    # Run LangGraph workflow
 
     result = study_planner_app.invoke({
 
@@ -339,12 +349,11 @@ with gr.Blocks(
     with gr.Row():
 
 
-        # =============================
+        # =====================================
         # INPUT SECTION
-        # =============================
+        # =====================================
 
         with gr.Column():
-
 
             subjects = gr.Textbox(
 
@@ -386,12 +395,11 @@ with gr.Blocks(
             )
 
 
-        # =============================
+        # =====================================
         # OUTPUT SECTION
-        # =============================
+        # =====================================
 
         with gr.Column():
-
 
             analysis_output = gr.Textbox(
 
@@ -417,34 +425,36 @@ with gr.Blocks(
             )
 
 
-# =====================================
-# BUTTON ACTION
-# =====================================
+    # =====================================
+    # BUTTON ACTION
+    # IMPORTANT:
+    # This is INSIDE gr.Blocks
+    # =====================================
 
-submit_button.click(
+    submit_button.click(
 
-    fn=run_study_planner,
+        fn=run_study_planner,
 
-    inputs=[
+        inputs=[
 
-        subjects,
+            subjects,
 
-        days,
+            days,
 
-        hours_per_day,
+            hours_per_day,
 
-        difficult_subjects
-    ],
+            difficult_subjects
+        ],
 
-    outputs=[
+        outputs=[
 
-        analysis_output,
+            analysis_output,
 
-        rag_output,
+            rag_output,
 
-        plan_output
-    ]
-)
+            plan_output
+        ]
+    )
 
 
 # =====================================
