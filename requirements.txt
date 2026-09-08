@@ -1,8 +1,4 @@
 gradio
-langchain
-langchain-core
-langchain-community
 langchain-groq
+langchain-core
 langgraph
-faiss-cpu
-sentence-transformers
