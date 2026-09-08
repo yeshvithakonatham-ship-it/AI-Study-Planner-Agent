@@ -1,4 +1,3 @@
 gradio
 langchain-groq
-langchain-core
 langgraph
