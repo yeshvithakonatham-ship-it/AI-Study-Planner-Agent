@@ -4,7 +4,7 @@ import gradio as gr
 from typing import TypedDict
 
 from langchain_groq import ChatGroq
-from langchain_core.documents import Document
+
 
 from langgraph.graph import StateGraph, START, END
 
@@ -69,15 +69,7 @@ study_documents = [
     """
 ]
 
-
-# Convert text into LangChain documents
-
-documents = [
-    Document(page_content=text)
-    for text in study_documents
-]
-
-
+documents = study_documents
 # =====================================
 # LANGGRAPH STATE
 # =====================================
@@ -144,7 +136,6 @@ Return the result in a structured format.
 
 def rag_retrieval(state: StudyState):
 
-    # Create a query from subjects and difficult subjects
     query = (
         state["subjects"] + " " +
         state["difficult_subjects"]
@@ -154,30 +145,24 @@ def rag_retrieval(state: StudyState):
 
     relevant_docs = []
 
-    # Lightweight keyword-based retrieval
-    for doc in documents:
+    for document in documents:
 
-        content = doc.page_content.lower()
+        content = document.lower()
 
-        # Check whether any query word appears
         if any(word in content for word in query_words):
-            relevant_docs.append(doc)
+            relevant_docs.append(document)
 
-    # If no specific documents match,
-    # return all available study techniques
     if not relevant_docs:
         relevant_docs = documents
 
-    # Select a maximum of 3 documents
     rag_content = "\n\n".join(
-        doc.page_content.strip()
-        for doc in relevant_docs[:3]
+        document.strip()
+        for document in relevant_docs[:3]
     )
 
     return {
         "rag_tips": rag_content
     }
-
 
 # =====================================
 # AGENT 3: STUDY PLAN GENERATOR
