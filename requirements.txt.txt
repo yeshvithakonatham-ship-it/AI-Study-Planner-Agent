@@ -1,0 +1,8 @@
+gradio
+langchain
+langchain-core
+langchain-community
+langchain-groq
+langgraph
+faiss-cpu
+sentence-transformers
